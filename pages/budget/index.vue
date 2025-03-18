@@ -227,7 +227,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, computed } from 'vue';
+  import { ref, computed, onMounted, watch } from 'vue';
   const { budgets, auth } = useSupabase();
   const loading = ref(false);
   const error = ref('');
@@ -239,13 +239,91 @@
     period: 'monthly',
   });
 
+  // 預算類別和使用狀況
   const categories = ref([
-    { name: '辦公用品', percentage: 20, used: 45000, total: 100000 },
-    { name: '差旅', percentage: 30, used: 80000, total: 150000 },
-    { name: 'SaaS 訂閱', percentage: 25, used: 35000, total: 125000 },
-    { name: '餐飲', percentage: 15, used: 25000, total: 75000 },
-    { name: '其他', percentage: 10, used: 15000, total: 50000 },
+    { name: '辦公用品', percentage: 20, used: 0, total: 0 },
+    { name: '差旅', percentage: 30, used: 0, total: 0 },
+    { name: 'SaaS 訂閱', percentage: 25, used: 0, total: 0 },
+    { name: '餐飲', percentage: 15, used: 0, total: 0 },
+    { name: '其他', percentage: 10, used: 0, total: 0 },
   ]);
+
+  // 更新預算類別的總額
+  const updateCategoryTotals = () => {
+    const total = parseFloat(form.value.totalBudget) || 0;
+    categories.value.forEach((category) => {
+      category.total = (total * category.percentage) / 100;
+    });
+  };
+
+  // 監聽總預算變化
+  watch(
+    () => form.value.totalBudget,
+    () => {
+      updateCategoryTotals();
+    }
+  );
+
+  // 監聽百分比變化
+  watch(
+    () => categories.value.map((c) => c.percentage),
+    () => {
+      updateCategoryTotals();
+    },
+    { deep: true }
+  );
+
+  // 載入預算資料
+  const loadBudgetData = async () => {
+    try {
+      const { user } = await auth.getUser();
+      if (!user) return;
+
+      const { data: budgetData, error: budgetError } =
+        await budgets.getByDepartment(
+          form.value.department,
+          parseInt(form.value.year)
+        );
+
+      if (budgetError) {
+        error.value = budgetError.message;
+        return;
+      }
+
+      if (budgetData && budgetData.length > 0) {
+        const budget = budgetData[0];
+        form.value.totalBudget = budget.total_budget.toString();
+        form.value.period = budget.period;
+
+        // 更新類別資料
+        if (budget.categories) {
+          budget.categories.forEach((cat: any) => {
+            const category = categories.value.find((c) => c.name === cat.name);
+            if (category) {
+              category.percentage = cat.percentage;
+              category.total = cat.amount;
+              // TODO: 這裡可以加入實際使用金額的計算
+              category.used = 0; // 暫時設為 0，之後可以從支出記錄中計算
+            }
+          });
+        }
+      }
+    } catch (e: any) {
+      error.value = e.message;
+    }
+  };
+
+  // 在組件載入時載入資料
+  onMounted(() => {
+    loadBudgetData();
+  });
+
+  // 當部門或年度變更時重新載入資料
+  watch([() => form.value.department, () => form.value.year], () => {
+    if (form.value.department) {
+      loadBudgetData();
+    }
+  });
 
   const totalBudget = computed(() => {
     return categories.value.reduce((sum, category) => sum + category.total, 0);
@@ -319,13 +397,8 @@
         return;
       }
 
-      // 重置表單
-      form.value = {
-        department: '',
-        year: '2024',
-        totalBudget: '',
-        period: 'monthly',
-      };
+      // 重新載入預算資料
+      await loadBudgetData();
 
       // 顯示成功訊息
       alert('預算設定已儲存');

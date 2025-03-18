@@ -79,17 +79,39 @@ export const useSupabase = () => {
 
     // 獲取部門預算
     getByDepartment: async (department: string, year: number) => {
-      const { data, error } = await supabase
+      // 先獲取預算資料
+      const { data: budgetData, error: budgetError } = await supabase
         .from('budgets')
-        .select(
-          `
-          *,
-          expense_categories (*)
-        `
-        )
+        .select('*')
         .eq('department', department)
-        .eq('year', year);
-      return { data, error };
+        .eq('year', year)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (budgetError) return { error: budgetError };
+
+      if (budgetData && budgetData.length > 0) {
+        // 再獲取對應的預算類別資料
+        const { data: categoriesData, error: categoriesError } = await supabase
+          .from('budget_categories')
+          .select('*')
+          .eq('budget_id', budgetData[0].id);
+
+        if (categoriesError) return { error: categoriesError };
+
+        // 組合資料
+        return {
+          data: [
+            {
+              ...budgetData[0],
+              categories: categoriesData,
+            },
+          ],
+          error: null,
+        };
+      }
+
+      return { data: null, error: null };
     },
   };
 
