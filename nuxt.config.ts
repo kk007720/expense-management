@@ -34,4 +34,10 @@ export default defineNuxtConfig({
     exposeConfig: false,
     viewer: true,
   },
+  imports: {
+    dirs: ['composables/**'],
+  },
+  typescript: {
+    strict: true,
+  },
 });

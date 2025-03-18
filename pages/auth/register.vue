@@ -7,15 +7,15 @@
         <h2
           class="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-white"
         >
-          登入您的帳戶
+          註冊新帳戶
         </h2>
         <p class="mt-2 text-center text-sm text-gray-600 dark:text-gray-400">
           或
           <NuxtLink
-            to="/auth/register"
+            to="/auth/login"
             class="font-medium text-primary hover:text-primary-dark"
           >
-            註冊新帳戶
+            返回登入
           </NuxtLink>
         </p>
       </div>
@@ -25,7 +25,7 @@
         <p class="text-sm text-red-700 dark:text-red-200">{{ error }}</p>
       </div>
 
-      <form class="mt-8 space-y-6" @submit.prevent="handleLogin">
+      <form class="mt-8 space-y-6" @submit.prevent="handleRegister">
         <div class="rounded-md shadow-sm -space-y-px">
           <div>
             <label for="email-address" class="sr-only">電子郵件</label>
@@ -46,36 +46,22 @@
               name="password"
               type="password"
               required
-              class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-b-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm dark:bg-gray-800"
+              class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm dark:bg-gray-800"
               placeholder="密碼"
               v-model="password"
             />
           </div>
-        </div>
-
-        <div class="flex items-center justify-between">
-          <div class="flex items-center">
+          <div>
+            <label for="confirm-password" class="sr-only">確認密碼</label>
             <input
-              id="remember-me"
-              name="remember-me"
-              type="checkbox"
-              class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+              id="confirm-password"
+              name="confirm-password"
+              type="password"
+              required
+              class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-b-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm dark:bg-gray-800"
+              placeholder="確認密碼"
+              v-model="confirmPassword"
             />
-            <label
-              for="remember-me"
-              class="ml-2 block text-sm text-gray-900 dark:text-gray-300"
-            >
-              記住我
-            </label>
-          </div>
-
-          <div class="text-sm">
-            <a
-              href="#"
-              class="font-medium text-primary hover:text-primary-dark"
-            >
-              忘記密碼？
-            </a>
           </div>
         </div>
 
@@ -86,7 +72,7 @@
             class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
           >
             <span v-if="loading">處理中...</span>
-            <span v-else>登入</span>
+            <span v-else>註冊</span>
           </button>
         </div>
 
@@ -99,7 +85,7 @@
             </div>
             <div class="relative flex justify-center text-sm">
               <span class="px-2 bg-gray-100 dark:bg-gray-900 text-gray-500">
-                或使用其他方式登入
+                或使用其他方式註冊
               </span>
             </div>
           </div>
@@ -107,7 +93,7 @@
           <div class="mt-6">
             <button
               type="button"
-              @click="handleGoogleLogin"
+              @click="handleGoogleRegister"
               :disabled="loading"
               class="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
             >
@@ -117,7 +103,7 @@
                 alt="Google logo"
               />
               <span v-if="loading">處理中...</span>
-              <span v-else>使用 Google 帳戶登入</span>
+              <span v-else>使用 Google 帳戶註冊</span>
             </button>
           </div>
         </div>
@@ -129,31 +115,42 @@
 <script setup lang="ts">
   import { ref } from 'vue';
   import { useRouter } from '#app';
+  import { useSupabase } from '@/composables/useSupabase';
 
   const { auth } = useSupabase();
   const router = useRouter();
 
   const email = ref('');
   const password = ref('');
+  const confirmPassword = ref('');
   const loading = ref(false);
   const error = ref('');
 
-  const handleLogin = async () => {
+  const handleRegister = async () => {
     try {
-      loading.value = true;
-      error.value = '';
-      const { data, error: loginError } = await auth.signInWithEmail(
-        email.value,
-        password.value
-      );
-
-      if (loginError) {
-        error.value = loginError.message;
+      // 驗證密碼
+      if (password.value !== confirmPassword.value) {
+        error.value = '密碼不一致';
         return;
       }
 
-      if (data.user) {
-        await router.push('/dashboard');
+      loading.value = true;
+      error.value = '';
+
+      // 使用 Supabase Auth 註冊
+      const { data, error: signUpError } = await auth.signUpWithPassword({
+        email: email.value,
+        password: password.value,
+      });
+
+      if (signUpError) {
+        error.value = signUpError.message;
+        return;
+      }
+
+      if (data) {
+        // 註冊成功，導向登入頁面
+        await router.push('/auth/login');
       }
     } catch (e: any) {
       error.value = e.message;
@@ -162,14 +159,14 @@
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleRegister = async () => {
     try {
       loading.value = true;
       error.value = '';
-      const { error: loginError } = await auth.signInWithGoogle();
+      const { error: signUpError } = await auth.signInWithGoogle();
 
-      if (loginError) {
-        error.value = loginError.message;
+      if (signUpError) {
+        error.value = signUpError.message;
       }
     } catch (e: any) {
       error.value = e.message;
