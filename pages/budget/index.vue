@@ -17,6 +17,15 @@
             <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4">
               預算設定
             </h2>
+
+            <!-- 錯誤訊息 -->
+            <div
+              v-if="error"
+              class="mb-4 bg-red-50 dark:bg-red-900 p-4 rounded-md"
+            >
+              <p class="text-sm text-red-700 dark:text-red-200">{{ error }}</p>
+            </div>
+
             <form @submit.prevent="handleSubmit" class="space-y-6">
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -145,9 +154,11 @@
                 </button>
                 <button
                   type="submit"
-                  class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                  :disabled="loading"
+                  class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
                 >
-                  儲存
+                  <span v-if="loading">處理中...</span>
+                  <span v-else>儲存</span>
                 </button>
               </div>
             </form>
@@ -217,6 +228,9 @@
 
 <script setup lang="ts">
   import { ref, computed } from 'vue';
+  const { budgets, auth } = useSupabase();
+  const loading = ref(false);
+  const error = ref('');
 
   const form = ref({
     department: '',
@@ -247,10 +261,78 @@
 
   const handleSubmit = async () => {
     try {
-      // TODO: 實作預算設定儲存邏輯
-      console.log('Budget form submitted:', form.value);
-    } catch (error) {
-      console.error('Submit error:', error);
+      if (!form.value.department) {
+        error.value = '請選擇部門';
+        return;
+      }
+
+      if (!form.value.totalBudget) {
+        error.value = '請輸入總預算';
+        return;
+      }
+
+      loading.value = true;
+      error.value = '';
+
+      // 獲取當前用戶
+      const { user } = await auth.getUser();
+      if (!user) {
+        error.value = '請先登入';
+        return;
+      }
+
+      // 準備預算資料
+      const budgetData = {
+        department: form.value.department,
+        year: parseInt(form.value.year),
+        total_budget: parseFloat(form.value.totalBudget),
+        period: form.value.period,
+        user_id: user.id, // 加入用戶 ID
+      };
+
+      // 儲存預算設定
+      const { data: budget, error: saveError } = await budgets.create(
+        budgetData
+      );
+
+      if (saveError) {
+        error.value = saveError.message;
+        return;
+      }
+
+      // 準備預算類別資料
+      const categoryData = categories.value.map((category) => ({
+        budget_id: budget[0].id,
+        name: category.name,
+        percentage: category.percentage,
+        amount:
+          (parseFloat(form.value.totalBudget) * category.percentage) / 100,
+      }));
+
+      // 儲存預算類別
+      const { error: categoryError } = await budgets.createCategories(
+        categoryData
+      );
+
+      if (categoryError) {
+        error.value = categoryError.message;
+        return;
+      }
+
+      // 重置表單
+      form.value = {
+        department: '',
+        year: '2024',
+        totalBudget: '',
+        period: 'monthly',
+      };
+
+      // 顯示成功訊息
+      alert('預算設定已儲存');
+    } catch (e: any) {
+      error.value = e.message;
+    } finally {
+      loading.value = false;
     }
   };
 </script>

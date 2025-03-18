@@ -68,6 +68,15 @@ export const useSupabase = () => {
       return { data, error };
     },
 
+    // 創建預算類別
+    createCategories: async (categoryData: any) => {
+      const { data, error } = await supabase
+        .from('budget_categories')
+        .insert(categoryData)
+        .select();
+      return { data, error };
+    },
+
     // 獲取部門預算
     getByDepartment: async (department: string, year: number) => {
       const { data, error } = await supabase
