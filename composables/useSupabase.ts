@@ -9,6 +9,18 @@ export const useSupabase = () => {
 
   // 認證相關
   const auth = {
+    // 使用 Email 註冊
+    signUpWithPassword: async (credentials: {
+      email: string;
+      password: string;
+    }) => {
+      const { data, error } = await supabase.auth.signUp({
+        email: credentials.email,
+        password: credentials.password,
+      });
+      return { data, error };
+    },
+
     // 使用 Google 登入
     signInWithGoogle: async () => {
       const { data, error } = await supabase.auth.signInWithOAuth({
