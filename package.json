@@ -1,0 +1,29 @@
+{
+  "name": "nuxt-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare"
+  },
+  "dependencies": {
+    "@formkit/nuxt": "^1.6.9",
+    "@heroicons/vue": "^2.2.0",
+    "@nuxtjs/color-mode": "^3.5.2",
+    "@nuxtjs/tailwindcss": "^6.13.2",
+    "@pinia/nuxt": "^0.10.1",
+    "@supabase/supabase-js": "^2.49.1",
+    "@tanstack/vue-query": "^5.68.0",
+    "@vueuse/nuxt": "^13.0.0",
+    "autoprefixer": "^10.4.21",
+    "daisyui": "^5.0.6",
+    "echarts": "^5.6.0",
+    "nuxt": "^3.16.0",
+    "postcss": "^8.5.3",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  }
+}
